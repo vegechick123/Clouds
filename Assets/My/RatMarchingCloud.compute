@@ -1,0 +1,141 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#include "UnityCG.cginc"
+
+float4x4 CameraToWorld;
+float4x4 CameraInverseProjection;
+float3 containerSize;
+float3 containerPos;
+float3 lightDir;
+float3 lightCol;
+sampler2D _CameraDepthTexture;
+Texture2D<float4> Depth;
+SamplerState sampler_Depth;
+Texture3D<float4> Cloud;
+SamplerState sampler_Cloud;
+SamplerState sampler_trilinear_repeat;
+Texture2D <float4> Source;
+SamplerState sampler_Source;
+RWTexture2D<float4> Result;
+struct Ray
+{
+	float3 origin;
+	float3 direction;
+};
+
+float2 getuv(uint3 id)
+{	uint width,height;
+	Result.GetDimensions(width, height);
+	float2 uv =float2((id.xy))/float2(width,height);
+	return uv;
+}
+Ray CreateRay(float3 origin,float3 direction)
+{
+	Ray ray;
+	ray.origin =origin;
+	ray.direction =direction;
+	return ray;
+}
+Ray CreateCameraRay(float2 uv)
+{
+	uv=2*uv-float2(1.0,1.0);//map to (-1,1);
+	float3 origin = mul(CameraToWorld,float4(0,0,0,1)).xyz;
+	float3 direction = mul(CameraInverseProjection,float4(uv,0,1)).xyz;
+	direction =mul(CameraToWorld,float4(direction,0)).xyz;
+	direction =normalize(direction);
+	return CreateRay(origin,direction);
+}
+float SampleDensity(float3 pos)
+{
+	  return Cloud.SampleLevel(sampler_trilinear_repeat,pos,0).r;
+}
+float LightMarching(float3 pos)
+{
+	Ray ray = CreateRay(pos,lightDir);
+	float step=0.5;
+	float nowdistance = 0;
+	float resDensity=0;
+	float3 nowpos;
+	while(true)
+	{
+		nowpos=float3(ray.origin+nowdistance*ray.direction);
+		nowpos=(nowpos-containerPos)/(containerSize/2);
+		nowdistance+=step;
+		if(abs(nowpos.x)>1||abs(nowpos.y)>1||abs(nowpos.z)>1)
+			{				
+				break;
+			}
+			else
+			{
+				nowpos /=2;
+				nowpos +=float3(0.5,0.5,0.5);
+				resDensity +=SampleDensity(nowpos)*step;
+				if(resDensity>0.9)
+					break;
+			}
+	}
+	return exp(-resDensity);//lightstength
+}
+float2 RayMarching(Ray ray,float depth)
+{
+	float step=1;
+	float nowdistance = 0;
+
+	float scartterX=1;
+	float scartterLight=0;
+	float3 cloudDist = containerPos-ray.origin-sign(ray.direction)*containerSize/2;
+	cloudDist/=ray.direction;
+	nowdistance = max(cloudDist.x,cloudDist.y);
+	nowdistance = max(nowdistance,cloudDist.z);
+	nowdistance = max(0,nowdistance);
+	nowdistance+=0.01;
+
+	float nowDensity=0;
+	float3 nowpos;
+	while(nowdistance<depth)
+	{
+		float3 worldPos = float3(ray.origin+nowdistance*ray.direction);
+		nowpos=worldPos;
+		nowpos=(nowpos-containerPos)/(containerSize/2);
+		nowdistance+=step;
+		if(abs(nowpos.x)>1||abs(nowpos.y)>1||abs(nowpos.z)>1)
+			{				
+				break;
+			}
+			else
+			{
+				nowpos/=2;
+				nowpos+=float3(0.5,0.5,0.5);
+				float tempDensity=SampleDensity(nowpos)*step;
+				nowDensity +=tempDensity;
+				//scartterLight += exp(-nowDensity)*scartterX*(1)*step*tempDensity;
+				scartterLight += exp(-nowDensity)*scartterX*(LightMarching(worldPos))*step*tempDensity;
+			}
+	}
+	return float2(scartterLight,exp(-nowDensity));
+}
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	
+	float2 uv=getuv(id);
+	Ray ray=CreateCameraRay(uv);
+	float depth = Depth.SampleLevel(sampler_Depth,uv,0).r;
+	depth =	LinearEyeDepth(depth);
+    float3 background =Source.SampleLevel(sampler_Source,uv,0).xyz;
+	float alpha=RayMarching(ray,depth);
+	
+	float3 res=float3(0,0,0);
+	float2 temp=RayMarching(ray,depth);
+	res=temp.x*lightCol+temp.y*background;
+	//res=ray.direction;
+	//res=containerPos.xyz;
+	//res=containerSize.xyz;
+	//res=cloudDist;
+	
+	//res=Cloud.SampleLevel(sampler_Cloud,float3(uv.x,0,uv.y),0);
+	//res=float3(1.0f,1.0f,1.0f)*diff;
+	//float3 res=depth;
+	//res=lightDir;
+	Result[id.xy]=float4(res,1.0);
+}

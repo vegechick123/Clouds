@@ -1,0 +1,23 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+Texture3D<float4> perlin;
+SamplerState sampler_perlin;
+Texture3D<float4> worely;
+SamplerState sampler_worely;
+float worelyWeight;
+RWTexture3D<float4> Result;
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+	uint pixelnum;
+	Result.GetDimensions(pixelnum, pixelnum,pixelnum);
+	float3 uvw=id.xyz*1.0f/pixelnum;
+	float4 perlinVal =perlin.SampleLevel(sampler_perlin,uvw,0);
+	float4 worelyVal =worely.SampleLevel(sampler_worely,uvw,0);
+    Result[id.xyz] =(1-worelyWeight)*perlinVal+worelyWeight*worelyVal;
+}

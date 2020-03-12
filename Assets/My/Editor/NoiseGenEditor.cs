@@ -10,10 +10,19 @@ public class MyNoiseGenEditor : Editor
     {
         NoiseGen noiseGen = (NoiseGen)target;
 
-        if (GUILayout.Button("Generate")||(DrawDefaultInspector()&&noiseGen.autoUpdate))
+        if (GUILayout.Button("Blend") || (DrawDefaultInspector() && noiseGen.autoUpdate))
         {
-            noiseGen.Gen();
+            noiseGen.Blend();
         }
+        if (GUILayout.Button("GenerateWorely"))
+        {
+            noiseGen.GenWorelyNoise();
+        }
+        if (GUILayout.Button("GeneratePerlin") )
+        {
+            noiseGen.GenPerlinNoise();
+        }
+        
 
     }
 }

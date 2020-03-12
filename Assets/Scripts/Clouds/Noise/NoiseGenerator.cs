@@ -197,12 +197,14 @@ public class NoiseGenerator : MonoBehaviour {
             if (texture != null) {
                 texture.Release ();
             }
-            texture = new RenderTexture (resolution, resolution, 0);
-            texture.graphicsFormat = format;
-            texture.volumeDepth = resolution;
-            texture.enableRandomWrite = true;
-            texture.dimension = UnityEngine.Rendering.TextureDimension.Tex3D;
-            texture.name = name;
+            texture = new RenderTexture(resolution, resolution, 0)
+            {
+                graphicsFormat = format,
+                volumeDepth = resolution,
+                enableRandomWrite = true,
+                dimension = UnityEngine.Rendering.TextureDimension.Tex3D,
+                name = name
+            };
 
             texture.Create ();
             Load (name, texture);

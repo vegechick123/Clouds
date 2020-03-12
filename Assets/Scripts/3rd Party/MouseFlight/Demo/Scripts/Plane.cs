@@ -18,7 +18,6 @@ namespace MFlight.Demo
     public class Plane : MonoBehaviour
     {
         [Header("Components")]
-        [SerializeField] private MouseFlightController controller = null;
 
         [Header("Physics")]
         [Tooltip("Force to push plane forwards with")] public float thrust = 100f;
@@ -47,8 +46,7 @@ namespace MFlight.Demo
         {
             rigid = GetComponent<Rigidbody>();
 
-            if (controller == null)
-                Debug.LogError(name + ": Plane - Missing reference to MouseFlightController!");
+           
         }
 
         private void Update()
@@ -75,8 +73,6 @@ namespace MFlight.Demo
             float autoYaw = 0f;
             float autoPitch = 0f;
             float autoRoll = 0f;
-            if (controller != null)
-                RunAutopilot(controller.MouseAimPos, out autoYaw, out autoPitch, out autoRoll);
 
             // Use either keyboard or autopilot input.
             yaw = autoYaw;

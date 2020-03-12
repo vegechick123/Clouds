@@ -1,0 +1,52 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+int cellAxisNum;
+float radius;
+RWTexture3D<float4> Result;
+float3 rand(int3 xyz)
+{
+	return float3(sin(dot(xyz,float3(1246916,156150,90191))),
+				  sin(dot(xyz,float3(1649408,790150,18795))),
+				  sin(dot(xyz,float3(6492801,106150,10127))))
+				  /2+float3(0.5,0.5,0.5);
+}
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	Result[id.xyz] =float4(0,0,0,0);
+	uint pixelNum;
+	Result.GetDimensions(pixelNum, pixelNum,pixelNum);
+	
+	float amplitude=1;
+    for(int channel=0;channel<4;channel++)
+	{
+		float cellSize = pixelNum * 1.0f /cellAxisNum;
+		float3 temp =id.xyz/cellSize;
+		int3 cord = temp;
+		float dist = radius;
+		for(int i=-1;i<=1;i++)
+			for(int j=-1;j<=1;j++)
+				for(int k=-1;k<=1;k++)
+				{
+					int3 nowCord = cord+int3(i,j,k);
+					(nowCord+=uint3(cellAxisNum,cellAxisNum,cellAxisNum))%=uint3(cellAxisNum,cellAxisNum,cellAxisNum);
+					float nowdist = length((temp - cord) - (rand(nowCord)+int3(i, j, k)));
+					dist=min(dist,nowdist);
+				}
+		switch (channel)
+           {
+		   case 0: Result[id.xyz] += (radius-dist)/radius*float4(1,0,0,0)*amplitude;
+                 break;
+           case 1: Result[id.xyz] += (radius-dist)/radius*float4(0,1,0,0)*amplitude;
+                 break;
+		   case 2: Result[id.xyz] += (radius-dist)/radius*float4(0,0,1,0)*amplitude;
+                 break;
+		   case 3: Result[id.xyz] += (radius-dist)/radius*float4(0,0,0,1)*amplitude;
+                 break;
+		   }  
+		cellAxisNum*=2;
+	}
+}
